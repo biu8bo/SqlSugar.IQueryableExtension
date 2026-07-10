@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="SqlSugar.IQueryableExtension/SqlSugar.IQueryableExtension.csproj" />
+  <Project Path="SqlSugar.IQueryableExtension.Tests/SqlSugar.IQueryableExtension.Tests.csproj" />
+  <Project Path="SqlSugar.IQueryableExtension.Sample/SqlSugar.IQueryableExtension.Sample.csproj" />
+</Solution>
