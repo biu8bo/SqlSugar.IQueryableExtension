@@ -3,6 +3,10 @@ using SqlSugar.IQueryableExtension.Tests.Models;
 
 namespace SqlSugar.IQueryableExtension.Tests;
 
+/// <summary>
+/// 联表（Join）相关测试：方法语法 Join、查询语法 join、联表前过滤、SQL 生成。
+/// Join 内部映射为 SqlSugar InnerJoin + Select + MergeTable。
+/// </summary>
 [Collection(nameof(SqliteCollection))]
 public class SugarQueryableJoinTests
 {
@@ -13,6 +17,10 @@ public class SugarQueryableJoinTests
         _database = database;
     }
 
+    /// <summary>
+    /// 验证 InnerJoin 只返回能匹配到客户的订单。
+    /// 订单 Id=5（CustomerId=99）为孤立数据，应被排除。
+    /// </summary>
     [Fact]
     public void Join_Projects_Matched_Rows()
     {
@@ -40,6 +48,9 @@ public class SugarQueryableJoinTests
         Assert.DoesNotContain(result, x => x.OrderId == 5);
     }
 
+    /// <summary>
+    /// 验证在 Join 之前对主表 Where 过滤（推荐写法，避免投影后别名问题）。
+    /// </summary>
     [Fact]
     public void Join_With_Where_Filters_Before_Join()
     {
@@ -60,10 +71,12 @@ public class SugarQueryableJoinTests
 
         var result = query.ToList();
 
+        // Amount >= 100 且能匹配客户：订单 1(100) 和 3(200)
         Assert.Equal(2, result.Count);
         Assert.All(result, x => Assert.True(x.Amount >= 100m));
     }
 
+    /// <summary>验证 C# 查询语法（from ... join ... select）可正常编译并执行。</summary>
     [Fact]
     public void Query_Syntax_Join_Works()
     {
@@ -84,6 +97,7 @@ public class SugarQueryableJoinTests
         Assert.DoesNotContain(result, x => x.OrderId == 5);
     }
 
+    /// <summary>验证 Join 生成的 SQL 包含 join 关键字及关联字段。</summary>
     [Fact]
     public void Join_Generates_Expected_Sql()
     {

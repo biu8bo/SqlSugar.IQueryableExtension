@@ -3,9 +3,13 @@ using SqlSugar.IQueryableExtension.Sample.Models;
 
 namespace SqlSugar.IQueryableExtension.Sample;
 
-/// <summary>创建并初始化演示用 SqlSugar 客户端。</summary>
+/// <summary>
+/// 创建并初始化演示用 SqlSugar 客户端。
+/// 首次运行自动建表并写入种子数据，后续运行复用已有数据。
+/// </summary>
 public static class SampleDb
 {
+    /// <summary>创建 SQLite 客户端，开启 SQL 日志输出到控制台。</summary>
     public static SqlSugarClient CreateClient()
     {
         var db = new SqlSugarClient(new ConnectionConfig
@@ -16,6 +20,7 @@ public static class SampleDb
             InitKeyType = InitKeyType.Attribute
         });
 
+        // 打印每条执行的 SQL，便于理解适配器翻译结果
         db.Aop.OnLogExecuting = (sql, _) => Console.WriteLine($"[SQL] {sql}");
 
         db.DbMaintenance.CreateDatabase();
@@ -25,6 +30,7 @@ public static class SampleDb
         return db;
     }
 
+    /// <summary>仅在表为空时写入演示数据，避免重复插入。</summary>
     private static void SeedIfEmpty(SqlSugarClient db)
     {
         if (db.Queryable<Customer>().Any())

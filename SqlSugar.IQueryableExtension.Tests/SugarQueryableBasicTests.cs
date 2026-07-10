@@ -3,6 +3,10 @@ using SqlSugar.IQueryableExtension.Tests.Models;
 
 namespace SqlSugar.IQueryableExtension.Tests;
 
+/// <summary>
+/// 基础 LINQ 查询测试：Where、OrderBy、Select、分页、聚合及双向转换。
+/// 使用 SQLite 内存库，测试数据见 <see cref="SqliteTestDatabase"/>。
+/// </summary>
 [Collection(nameof(SqliteCollection))]
 public class SugarQueryableBasicTests
 {
@@ -13,6 +17,7 @@ public class SugarQueryableBasicTests
         _database = database;
     }
 
+    /// <summary>验证 AsLinqQueryable 后可直接 ToList 并返回全部数据。</summary>
     [Fact]
     public void ToList_Returns_All_Orders()
     {
@@ -20,9 +25,11 @@ public class SugarQueryableBasicTests
 
         var result = query.ToList();
 
+        // 种子数据共 5 条订单
         Assert.Equal(5, result.Count);
     }
 
+    /// <summary>验证 Where 条件过滤是否翻译为 SQL WHERE 子句。</summary>
     [Fact]
     public void Where_Filters_By_Predicate()
     {
@@ -35,6 +42,7 @@ public class SugarQueryableBasicTests
         Assert.All(result, o => Assert.Equal("Paid", o.Status));
     }
 
+    /// <summary>验证 OrderBy 升序排序。</summary>
     [Fact]
     public void OrderBy_Sorts_Ascending()
     {
@@ -46,6 +54,7 @@ public class SugarQueryableBasicTests
         Assert.Equal(new[] { 10m, 50m, 75m, 100m, 200m }, result.Select(o => o.Amount));
     }
 
+    /// <summary>验证 OrderByDescending 降序排序，配合 Take 取前 N 条。</summary>
     [Fact]
     public void OrderByDescending_Sorts_Descending()
     {
@@ -58,6 +67,7 @@ public class SugarQueryableBasicTests
         Assert.Equal(new[] { 200m, 100m, 75m }, result.Select(o => o.Amount));
     }
 
+    /// <summary>验证单表 Select 投影为 DTO（内部使用 SelectMergeTable）。</summary>
     [Fact]
     public void Select_Projects_Fields()
     {
@@ -75,6 +85,7 @@ public class SugarQueryableBasicTests
         Assert.Contains(result, x => x.OrderId == 1 && x.Amount == 100m);
     }
 
+    /// <summary>验证 Skip + Take 分页组合。</summary>
     [Fact]
     public void Skip_And_Take_Paginate()
     {
@@ -89,6 +100,7 @@ public class SugarQueryableBasicTests
         Assert.Equal(new[] { 3, 4 }, result.Select(o => o.Id));
     }
 
+    /// <summary>验证 Count 终结操作，不物化完整列表。</summary>
     [Fact]
     public void Count_Returns_Filtered_Count()
     {
@@ -100,6 +112,7 @@ public class SugarQueryableBasicTests
         Assert.Equal(3, count);
     }
 
+    /// <summary>验证 Any 在存在匹配项时返回 true。</summary>
     [Fact]
     public void Any_Returns_True_When_Match_Exists()
     {
@@ -109,6 +122,7 @@ public class SugarQueryableBasicTests
         Assert.True(query.Any());
     }
 
+    /// <summary>验证 Any 在无匹配项时返回 false。</summary>
     [Fact]
     public void Any_Returns_False_When_No_Match()
     {
@@ -118,6 +132,7 @@ public class SugarQueryableBasicTests
         Assert.False(query.Any());
     }
 
+    /// <summary>验证 First 返回排序后的第一条记录。</summary>
     [Fact]
     public void First_Returns_First_Matching_Item()
     {
@@ -130,6 +145,7 @@ public class SugarQueryableBasicTests
         Assert.Equal(3, result.Id);
     }
 
+    /// <summary>验证 FirstOrDefault 在无匹配时返回 null。</summary>
     [Fact]
     public void FirstOrDefault_Returns_Null_When_No_Match()
     {
@@ -141,6 +157,7 @@ public class SugarQueryableBasicTests
         Assert.Null(result);
     }
 
+    /// <summary>验证 Distinct 对实体去重（本数据集无重复行，返回 4 条）。</summary>
     [Fact]
     public void Distinct_Returns_Unique_Entity_Rows()
     {
@@ -153,6 +170,7 @@ public class SugarQueryableBasicTests
         Assert.Equal(4, result.Count);
     }
 
+    /// <summary>验证 AsSugarQueryable 可回退到 SqlSugar 并生成正确 SQL。</summary>
     [Fact]
     public void AsSugarQueryable_Round_Trips_Back_To_SqlSugar()
     {

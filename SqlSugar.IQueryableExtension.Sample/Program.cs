@@ -6,11 +6,13 @@ namespace SqlSugar.IQueryableExtension.Sample;
 
 /// <summary>
 /// 演示 SqlSugar.IQueryableExtension 的典型用法。
+/// 运行方式：dotnet run --project SqlSugar.IQueryableExtension.Sample
 /// </summary>
 public static class Program
 {
     public static void Main()
     {
+        // 创建本地 SQLite 数据库并写入演示数据
         using var db = SampleDb.CreateClient();
 
         DemoBasicQuery(db);
@@ -19,7 +21,10 @@ public static class Program
         DemoPostProjectionFilter(db);
     }
 
-    /// <summary>基础 Where / OrderBy / Take。</summary>
+    /// <summary>
+    /// 场景 1：基础 LINQ 查询。
+    /// 演示 AsLinqQueryable → Where → OrderBy → Take 链式调用。
+    /// </summary>
     private static void DemoBasicQuery(SqlSugarClient db)
     {
         Console.WriteLine("=== 基础查询 ===");
@@ -35,7 +40,10 @@ public static class Program
         }
     }
 
-    /// <summary>单表 Select 投影为 DTO。</summary>
+    /// <summary>
+    /// 场景 2：单表 Select 投影。
+    /// SelectMergeTable 将结果折叠为单表，之后可对 DTO 继续 Where。
+    /// </summary>
     private static void DemoSingleTableProjection(SqlSugarClient db)
     {
         Console.WriteLine();
@@ -55,7 +63,10 @@ public static class Program
         }
     }
 
-    /// <summary>联表 Join 并投影为 DTO。</summary>
+    /// <summary>
+    /// 场景 3：联表 Join 并投影为 DTO。
+    /// LINQ Join 映射为 SqlSugar InnerJoin + Select + MergeTable。
+    /// </summary>
     private static void DemoJoinProjection(SqlSugarClient db)
     {
         Console.WriteLine();
@@ -81,7 +92,10 @@ public static class Program
         }
     }
 
-    /// <summary>联表投影后继续 Where / OrderBy（MergeTable + 参数名规范化）。</summary>
+    /// <summary>
+    /// 场景 4：联表投影后继续 Where / OrderBy。
+    /// 使用查询语法 join，演示投影 DTO 上的二次过滤与 AsSugarQueryable 查看 SQL。
+    /// </summary>
     private static void DemoPostProjectionFilter(SqlSugarClient db)
     {
         Console.WriteLine();
@@ -102,6 +116,7 @@ public static class Program
             .Where(x => x.Amount >= 100m)
             .OrderByDescending(x => x.Amount);
 
+        // 通过 AsSugarQueryable 取回底层查询，打印最终 SQL
         Console.WriteLine(filtered.AsSugarQueryable().ToSqlString());
         foreach (var item in filtered.ToList())
         {
