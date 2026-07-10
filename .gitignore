@@ -1,29 +1,60 @@
-## Build
-bin/
-obj/
+## .NET (https://github.com/github/gitignore/blob/main/Dotnet.gitignore)
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
 out/
 
-## IDE
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+packages/
+
+# dotenv
+.env
+
+# Others
+~$*
+*~
+CodeCoverage/
+*.binlog
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+coverage/
+*.coverage
+
+# IDE
 .idea/
 .vs/
 *.user
 *.suo
 *.DotSettings.user
 
-## OS
+# OS
 Thumbs.db
 .DS_Store
 
-## NuGet
-*.nupkg
-packages/
-
-## Local databases
+# Local databases
 *.db
 *.db-shm
 *.db-wal
-
-## Test / coverage
-TestResults/
-coverage/
-*.coverage
