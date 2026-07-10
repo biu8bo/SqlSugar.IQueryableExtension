@@ -1,6 +1,7 @@
 using SqlSugar;
 using SqlSugar.IQueryableExtension;
 using SqlSugar.IQueryableExtension.Sample.Models;
+using SqlSugar.IQueryableExtension.Sample.Services;
 
 namespace SqlSugar.IQueryableExtension.Sample;
 
@@ -15,27 +16,33 @@ public static class Program
         // 创建本地 SQLite 数据库并写入演示数据
         using var db = SampleDb.CreateClient();
 
+        DemoReadmePlainIQueryableExamples(db);
         DemoBasicQuery(db);
         DemoSingleTableProjection(db);
         DemoJoinProjection(db);
         DemoPostProjectionFilter(db);
-        DemoExternalIQueryableConversion(db);
     }
 
     /// <summary>
-    /// 场景 1：基础 LINQ 查询。
+    /// 场景 1：README 基础用法（SqlSugar → IQueryable）。
     /// 演示 AsLinqQueryable → Where → OrderBy → Take 链式调用。
     /// </summary>
     private static void DemoBasicQuery(SqlSugarClient db)
     {
-        Console.WriteLine("=== 基础查询 ===");
+        Console.WriteLine("=== 基础查询（README 基础用法） ===");
 
-        var query = db.Queryable<Order>().AsLinqQueryable()
+        IQueryable<Order> query = db.Queryable<Order>().AsLinqQueryable();
+
+        query = query
             .Where(o => o.Status == "Paid")
             .OrderBy(o => o.Amount)
             .Take(3);
 
-        foreach (var order in query)
+        var list = query.ToList();
+        var sql = query.AsSugarQueryable().ToSqlString();
+
+        Console.WriteLine(sql);
+        foreach (var order in list)
         {
             Console.WriteLine($"Order #{order.Id} Amount={order.Amount}");
         }
@@ -117,7 +124,6 @@ public static class Program
             .Where(x => x.Amount >= 100m)
             .OrderByDescending(x => x.Amount);
 
-        // 通过 AsSugarQueryable 取回底层查询，打印最终 SQL
         Console.WriteLine(filtered.AsSugarQueryable().ToSqlString());
         foreach (var item in filtered.ToList())
         {
@@ -126,26 +132,95 @@ public static class Program
     }
 
     /// <summary>
-    /// 场景 5：外部 IQueryable 转 SqlSugar。
-    /// 模拟第三方筛选组件在内存 IQueryable 上构建条件，再通过 AsSugarQueryable(db) 翻译为 SQL 执行。
+    /// 场景 5：README「普通 IQueryable 转 ISugarQueryable」四种写法演示。
     /// </summary>
-    private static void DemoExternalIQueryableConversion(SqlSugarClient db)
+    private static void DemoReadmePlainIQueryableExamples(SqlSugarClient db)
     {
         Console.WriteLine();
-        Console.WriteLine("=== 外部 IQueryable 转换 ===");
+        Console.WriteLine("=== README 普通 IQueryable 转换 ===");
 
-        // 第三方组件通常在空集合或占位 IQueryable 上叠加 Where/Select 等操作
-        IQueryable<Order> external = new List<Order>().AsQueryable()
+        DemoReadmeExample1(db);
+        DemoReadmeExample2(db);
+        DemoReadmeExample3(db);
+        DemoReadmeExample4(db);
+    }
+
+    /// <summary>README 示例 1：内存集合上的 LINQ 条件。</summary>
+    private static void DemoReadmeExample1(SqlSugarClient db)
+    {
+        Console.WriteLine();
+        Console.WriteLine("--- 示例 1：内存集合 LINQ 条件 ---");
+
+        IQueryable<Order> query = new List<Order>().AsQueryable()
             .Where(o => o.Status == "Paid")
             .OrderBy(o => o.Amount);
 
-        // 将表达式树根替换为 db.Queryable<Order>()，在数据库侧执行
-        var sugar = external.AsSugarQueryable(db);
-        Console.WriteLine(sugar.ToSqlString());
+        ISugarQueryable<Order> sugar = query.AsSugarQueryable(db);
 
+        Console.WriteLine(sugar.ToSqlString());
         foreach (var order in sugar.ToList())
         {
             Console.WriteLine($"Paid order #{order.Id} Amount={order.Amount}");
         }
+    }
+
+    /// <summary>README 示例 2：第三方组件返回的 IQueryable。</summary>
+    private static void DemoReadmeExample2(SqlSugarClient db)
+    {
+        Console.WriteLine();
+        Console.WriteLine("--- 示例 2：第三方筛选组件 ---");
+
+        var filterService = new StubFilterService();
+
+        IQueryable<Order> filtered = filterService
+            .Apply(new List<Order>().AsQueryable())
+            .Where(o => o.Amount >= 100m);
+
+        var orders = filtered.AsSugarQueryable(db).ToList();
+        foreach (var order in orders)
+        {
+            Console.WriteLine($"High amount order #{order.Id} Amount={order.Amount}");
+        }
+    }
+
+    /// <summary>README 示例 3：含 Select 投影的普通 IQueryable。</summary>
+    private static void DemoReadmeExample3(SqlSugarClient db)
+    {
+        Console.WriteLine();
+        Console.WriteLine("--- 示例 3：投影后转换 ---");
+
+        IQueryable<OrderAmountDto> projected = new List<Order>().AsQueryable()
+            .Where(o => o.Status == "Paid")
+            .Select(o => new OrderAmountDto
+            {
+                OrderId = o.Id,
+                Amount = o.Amount
+            });
+
+        ISugarQueryable<OrderAmountDto> sugar = projected.AsSugarQueryable(db);
+        foreach (var dto in sugar.OrderBy(x => x.Amount).ToList())
+        {
+            Console.WriteLine($"DTO OrderId={dto.OrderId} Amount={dto.Amount}");
+        }
+    }
+
+    /// <summary>README 示例 4：从 db 侧调用 ToSugarQueryable。</summary>
+    private static void DemoReadmeExample4(SqlSugarClient db)
+    {
+        Console.WriteLine();
+        Console.WriteLine("--- 示例 4：db.ToSugarQueryable ---");
+
+        IQueryable<Order> query = BuildQueryFromThirdParty();
+
+        ISugarQueryable<Order> sugar = db.ToSugarQueryable(query);
+        Console.WriteLine($"Count={sugar.Count()}");
+        Console.WriteLine(sugar.ToSqlString());
+    }
+
+    /// <summary>模拟 README 示例 4 中任意来源的普通 IQueryable。</summary>
+    private static IQueryable<Order> BuildQueryFromThirdParty()
+    {
+        return new List<Order>().AsQueryable()
+            .Where(o => o.Amount >= 100m);
     }
 }

@@ -170,6 +170,24 @@ public class SugarQueryableBasicTests
         Assert.Equal(4, result.Count);
     }
 
+    /// <summary>README 基础用法：AsLinqQueryable → LINQ 链 → ToList / AsSugarQueryable。</summary>
+    [Fact]
+    public void Readme_BasicUsage_AsLinqQueryable_To_SugarQueryable()
+    {
+        IQueryable<Order> query = _database.Db.Queryable<Order>().AsLinqQueryable();
+
+        query = query
+            .Where(o => o.Status == "Paid")
+            .OrderBy(o => o.Amount)
+            .Take(10);
+
+        var list = query.ToList();
+        var sql = query.AsSugarQueryable().ToSqlString();
+
+        Assert.Equal(3, list.Count);
+        Assert.Contains("Status", sql, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>验证 AsSugarQueryable 可回退到 SqlSugar 并生成正确 SQL。</summary>
     [Fact]
     public void AsSugarQueryable_Round_Trips_Back_To_SqlSugar()
