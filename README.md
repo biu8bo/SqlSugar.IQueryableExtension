@@ -12,6 +12,7 @@ SqlSugar.IQueryableExtension 是一个轻量级桥接库。它通过自定义 `I
 - **表达式树翻译**：支持 `Where`、`Select`、`OrderBy`、`Skip`、`Take`、`Join` 等常用操作
 - **投影支持**：单表 `SelectMergeTable`、联表 `MergeTable`，投影后可继续 `Where` / `OrderBy`
 - **双向转换**：`AsLinqQueryable()` 进入 LINQ 世界，`AsSugarQueryable()` 回到 SqlSugar 原生 API
+- **外部 IQueryable 接入**：任意第三方构建的 `IQueryable<T>` 可通过 `AsSugarQueryable(db)` 翻译为 SqlSugar 查询
 - **查询隔离**：翻译前自动 `Clone()`，避免 SqlSugar 链式操作污染原始实例
 
 ## 支持的 LINQ 操作
@@ -61,6 +62,26 @@ var list = query.ToList();
 // 3. 需要 SqlSugar 原生能力时，取回底层查询
 var sql = query.AsSugarQueryable().ToSqlString();
 ```
+
+### 外部 IQueryable 转 SqlSugar
+
+当筛选组件、动态查询库等第三方库返回标准 `IQueryable<T>` 时，可指定 SqlSugar 数据源将其翻译为 SQL 查询：
+
+```csharp
+// 第三方组件在内存 IQueryable 上构建的表达式树
+IQueryable<Order> external = filterComponent
+    .Apply(new List<Order>().AsQueryable())
+    .Where(o => o.Status == "Paid");
+
+// 替换表达式树根节点为 db.Queryable<Order>()，重放 LINQ 链
+var sugar = external.AsSugarQueryable(db);
+// 或使用 db 扩展方法
+var sugar2 = db.ToSugarQueryable(external);
+
+var count = sugar.Count();  // 实际查询数据库
+```
+
+> 仅支持本库已实现的 LINQ 操作符；表达式树中的数据源会被替换为 `db.Queryable<TSource>()`，执行时走 SQL 而非内存过滤。
 
 ### 单表投影
 
@@ -157,7 +178,7 @@ SqlSugar.IQueryableExtension/
 dotnet test SqlSugar.IQueryableExtension.Tests/SqlSugar.IQueryableExtension.Tests.csproj
 ```
 
-测试使用 SQLite 内存数据库，覆盖基础查询、投影、联表等 22 个场景。
+测试使用 SQLite 内存数据库，覆盖基础查询、投影、联表、外部 IQueryable 转换等 26 个场景。
 
 ### 运行演示
 
@@ -169,6 +190,7 @@ dotnet run --project SqlSugar.IQueryableExtension.Sample/SqlSugar.IQueryableExte
 
 - 实体类型需为引用类型且有无参构造函数（`class, new()`）
 - SqlSugar 专有 API（`Includes`、`LeftJoin`、`SplitTable` 等）请通过 `AsSugarQueryable()` 使用
+- 非本库创建的 `IQueryable` 需调用 `AsSugarQueryable(db)` 并传入 `ISqlSugarClient` 以指定数据源
 - `GroupBy`、左连接、`GroupJoin` 等复杂 LINQ 操作暂未支持
 - 投影类型不支持 `string` 等原始类型包装查询
 

@@ -19,6 +19,7 @@ public static class Program
         DemoSingleTableProjection(db);
         DemoJoinProjection(db);
         DemoPostProjectionFilter(db);
+        DemoExternalIQueryableConversion(db);
     }
 
     /// <summary>
@@ -121,6 +122,30 @@ public static class Program
         foreach (var item in filtered.ToList())
         {
             Console.WriteLine($"High value: {item.CustomerName} -> {item.Amount}");
+        }
+    }
+
+    /// <summary>
+    /// 场景 5：外部 IQueryable 转 SqlSugar。
+    /// 模拟第三方筛选组件在内存 IQueryable 上构建条件，再通过 AsSugarQueryable(db) 翻译为 SQL 执行。
+    /// </summary>
+    private static void DemoExternalIQueryableConversion(SqlSugarClient db)
+    {
+        Console.WriteLine();
+        Console.WriteLine("=== 外部 IQueryable 转换 ===");
+
+        // 第三方组件通常在空集合或占位 IQueryable 上叠加 Where/Select 等操作
+        IQueryable<Order> external = new List<Order>().AsQueryable()
+            .Where(o => o.Status == "Paid")
+            .OrderBy(o => o.Amount);
+
+        // 将表达式树根替换为 db.Queryable<Order>()，在数据库侧执行
+        var sugar = external.AsSugarQueryable(db);
+        Console.WriteLine(sugar.ToSqlString());
+
+        foreach (var order in sugar.ToList())
+        {
+            Console.WriteLine($"Paid order #{order.Id} Amount={order.Amount}");
         }
     }
 }

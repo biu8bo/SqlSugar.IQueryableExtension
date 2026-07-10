@@ -36,6 +36,10 @@ internal static class SugarQueryTranslator
         return InvokeToList(query);
     }
 
+    /// <summary>
+    /// 从类型定义或其实现的 <see cref="IQueryable{T}"/> / <see cref="IEnumerable{T}"/> 接口中解析元素类型。
+    /// 用于识别 <c>EnumerableQuery&lt;T&gt;</c> 等具体包装类型。
+    /// </summary>
     public static Type GetElementType(Type type)
     {
         if (type.IsGenericType)
@@ -43,6 +47,16 @@ internal static class SugarQueryTranslator
             var definition = type.GetGenericTypeDefinition();
             if (definition == typeof(IQueryable<>) || definition == typeof(IEnumerable<>))
                 return type.GetGenericArguments()[0];
+        }
+
+        foreach (var iface in type.GetInterfaces())
+        {
+            if (!iface.IsGenericType)
+                continue;
+
+            var ifaceDefinition = iface.GetGenericTypeDefinition();
+            if (ifaceDefinition == typeof(IQueryable<>) || ifaceDefinition == typeof(IEnumerable<>))
+                return iface.GetGenericArguments()[0];
         }
 
         return type;

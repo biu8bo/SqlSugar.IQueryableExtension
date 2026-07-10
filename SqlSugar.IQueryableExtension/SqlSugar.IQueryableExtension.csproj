@@ -4,7 +4,7 @@
         <TargetFramework>netstandard2.1</TargetFramework>
         <Nullable>enable</Nullable>
         <LangVersion>10</LangVersion>
-        <Description>将 SqlSugar ISugarQueryable 适配为 IQueryable，供动态查询、筛选组件等 LINQ 库使用。IQueryProvider 解析 Where/Select/Join/OrderBy，Lambda 交由 SqlSugar 生成 SQL。支持单表与联表投影及投影后过滤，AsLinqQueryable/AsSugarQueryable 双向转换。</Description>
+        <Description>将 SqlSugar ISugarQueryable 适配为 IQueryable，供动态查询、筛选组件等 LINQ 库使用。IQueryProvider 解析 Where/Select/Join/OrderBy，Lambda 交由 SqlSugar 生成 SQL。支持单表与联表投影、投影后过滤，以及外部 IQueryable 经 AsSugarQueryable(db) 翻译回 SqlSugar。</Description>
     </PropertyGroup>
 
     <ItemGroup>
