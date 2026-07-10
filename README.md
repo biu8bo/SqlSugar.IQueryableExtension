@@ -11,7 +11,7 @@ SqlSugar.IQueryableExtension 是一个轻量级桥接库。它通过自定义 `I
 - **标准 IQueryable 适配**：第三方库可直接消费 `IQueryable<T>`
 - **表达式树翻译**：支持 `Where`、`Select`、`OrderBy`、`Skip`、`Take`、`Join` 等常用操作
 - **投影支持**：单表 `SelectMergeTable`、联表 `MergeTable`，投影后可继续 `Where` / `OrderBy`
-- **双向转换**：`AsLinqQueryable()` 进入 LINQ 世界，`AsSugarQueryable()` 回到 SqlSugar 原生 API
+- **双向转换**：`AsLinqQueryable()` 进入 LINQ 世界；`AsSugarQueryable()` 取回本库查询，`AsSugarQueryable(db)` 翻译外部 IQueryable
 - **外部 IQueryable 接入**：任意第三方构建的 `IQueryable<T>` 可通过 `AsSugarQueryable(db)` 翻译为 SqlSugar 查询
 - **查询隔离**：翻译前自动 `Clone()`，避免 SqlSugar 链式操作污染原始实例
 
@@ -83,6 +83,15 @@ var count = sugar.Count();  // 实际查询数据库
 
 > 仅支持本库已实现的 LINQ 操作符；表达式树中的数据源会被替换为 `db.Queryable<TSource>()`，执行时走 SQL 而非内存过滤。
 
+### API 参考
+
+| 扩展方法 | 作用 |
+|----------|------|
+| `ISugarQueryable<T>.AsLinqQueryable()` | SqlSugar 查询 → 标准 `IQueryable<T>` |
+| `IQueryable<T>.AsSugarQueryable()` | 本库适配的 `IQueryable` → `ISugarQueryable<T>` |
+| `IQueryable<T>.AsSugarQueryable(ISqlSugarClient db)` | 任意 `IQueryable` → `ISugarQueryable<T>`（替换表达式树根后重放 LINQ 链） |
+| `ISqlSugarClient.ToSugarQueryable(IQueryable<T>)` | 上者的别名，从 `db` 侧调用 |
+
 ### 单表投影
 
 ```csharp
@@ -137,6 +146,8 @@ var result = query.Where(x => x.Amount > 0).ToList();
 
 ## 架构说明
 
+**正向：SqlSugar → LINQ 生态**
+
 ```
 ISugarQueryable<T>
        │  AsLinqQueryable()
@@ -151,6 +162,18 @@ SugarQueryTranslator (ExpressionVisitor)
        │  解析 MethodCallExpression → 调用 ISugarQueryable API
        ▼
 SqlSugar ExpressionToSql → SQL → Database
+```
+
+**反向：外部 IQueryable → SqlSugar**
+
+```
+第三方 IQueryable<T>（Expression 树）
+       │  AsSugarQueryable(db)
+       ▼
+QueryRootReplacer：根节点替换为 db.Queryable<TSource>()
+       │  重放 Where / Select / Join / OrderBy … 链
+       ▼
+SugarQueryTranslator → ISugarQueryable<T> → SQL → Database
 ```
 
 **设计要点：**
@@ -181,6 +204,8 @@ dotnet test SqlSugar.IQueryableExtension.Tests/SqlSugar.IQueryableExtension.Test
 测试使用 SQLite 内存数据库，覆盖基础查询、投影、联表、外部 IQueryable 转换等 26 个场景。
 
 ### 运行演示
+
+演示项目包含 5 个场景：基础查询、单表投影、联表投影、投影后过滤、外部 IQueryable 转换。
 
 ```bash
 dotnet run --project SqlSugar.IQueryableExtension.Sample/SqlSugar.IQueryableExtension.Sample.csproj
