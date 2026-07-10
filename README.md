@@ -30,19 +30,89 @@ SqlSugar.IQueryableExtension 是一个轻量级桥接库。它通过自定义 `I
 
 ## 快速开始
 
-### 安装
+### 引用本仓库
+
+在业务项目中添加对本仓库核心类库的项目引用：
 
 ```bash
-dotnet add package SqlSugar.IQueryableExtension
+# 克隆仓库后，在业务项目目录执行（按实际路径调整）
+dotnet add reference ../SqlSugar.IQueryableExtension/SqlSugar.IQueryableExtension/SqlSugar.IQueryableExtension.csproj
 ```
 
-或在项目中引用本仓库：
+或在 `.csproj` 中手动添加：
 
-```bash
-dotnet add reference path/to/SqlSugar.IQueryableExtension/SqlSugar.IQueryableExtension.csproj
+```xml
+<ItemGroup>
+  <ProjectReference Include="..\SqlSugar.IQueryableExtension\SqlSugar.IQueryableExtension\SqlSugar.IQueryableExtension.csproj" />
+</ItemGroup>
 ```
 
-### 基础用法
+代码中引入命名空间：
+
+```csharp
+using SqlSugar;
+using SqlSugar.IQueryableExtension;
+```
+
+### 普通 IQueryable 转 ISugarQueryable
+
+任意标准 `IQueryable<T>`（内存集合、第三方筛选组件、动态查询库返回的查询等）均可通过 `AsSugarQueryable(db)` 转为 SqlSugar 查询。库会将表达式树根替换为 `db.Queryable<TSource>()`，再重放整条 LINQ 链，最终在数据库侧执行 SQL。
+
+**示例 1：内存集合上的 LINQ 条件**
+
+```csharp
+// 普通 IQueryable：在空列表上叠加 Where / OrderBy（仅构建表达式树）
+IQueryable<Order> query = new List<Order>().AsQueryable()
+    .Where(o => o.Status == "Paid")
+    .OrderBy(o => o.Amount);
+
+// 转为 ISugarQueryable，在数据库执行
+ISugarQueryable<Order> sugar = query.AsSugarQueryable(db);
+
+var list = sugar.ToList();
+var sql  = sugar.ToSqlString();
+```
+
+**示例 2：第三方组件返回的 IQueryable**
+
+```csharp
+// 筛选组件通常在占位 IQueryable 上追加条件
+IQueryable<Order> filtered = filterService
+    .Apply(new List<Order>().AsQueryable())
+    .Where(o => o.Amount >= 100m);
+
+// 交给 SqlSugar 执行
+var orders = filtered.AsSugarQueryable(db).ToList();
+```
+
+**示例 3：含 Select 投影的普通 IQueryable**
+
+```csharp
+IQueryable<OrderAmountDto> projected = new List<Order>().AsQueryable()
+    .Where(o => o.Status == "Paid")
+    .Select(o => new OrderAmountDto
+    {
+        OrderId = o.Id,
+        Amount = o.Amount
+    });
+
+// 投影后的 IQueryable 同样可转换
+ISugarQueryable<OrderAmountDto> sugar = projected.AsSugarQueryable(db);
+var dtos = sugar.OrderBy(x => x.Amount).ToList();
+```
+
+**示例 4：从 db 侧调用（等价写法）**
+
+```csharp
+IQueryable<Order> query = BuildQueryFromThirdParty(); // 任意来源的普通 IQueryable
+
+ISugarQueryable<Order> sugar = db.ToSugarQueryable(query);
+var count = sugar.Count();
+```
+
+> 说明：`AsSugarQueryable()` 无参重载仅适用于本库 `AsLinqQueryable()` 创建的查询；普通 `IQueryable` 必须传入 `db` 以指定数据源。仅支持本库已实现的 LINQ 操作符。
+
+### 基础用法（SqlSugar → IQueryable）
 
 ```csharp
 using SqlSugar;
@@ -59,29 +129,9 @@ query = query
 
 var list = query.ToList();
 
-// 3. 需要 SqlSugar 原生能力时，取回底层查询
+// 3. 本库创建的 IQueryable 可直接取回底层查询
 var sql = query.AsSugarQueryable().ToSqlString();
 ```
-
-### 外部 IQueryable 转 SqlSugar
-
-当筛选组件、动态查询库等第三方库返回标准 `IQueryable<T>` 时，可指定 SqlSugar 数据源将其翻译为 SQL 查询：
-
-```csharp
-// 第三方组件在内存 IQueryable 上构建的表达式树
-IQueryable<Order> external = filterComponent
-    .Apply(new List<Order>().AsQueryable())
-    .Where(o => o.Status == "Paid");
-
-// 替换表达式树根节点为 db.Queryable<Order>()，重放 LINQ 链
-var sugar = external.AsSugarQueryable(db);
-// 或使用 db 扩展方法
-var sugar2 = db.ToSugarQueryable(external);
-
-var count = sugar.Count();  // 实际查询数据库
-```
-
-> 仅支持本库已实现的 LINQ 操作符；表达式树中的数据源会被替换为 `db.Queryable<TSource>()`，执行时走 SQL 而非内存过滤。
 
 ### API 参考
 
